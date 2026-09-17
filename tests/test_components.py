@@ -90,3 +90,21 @@ def test_methodology_table_html_escapes_and_marks_missing() -> None:
     assert "<li>FAD 1.2</li>" in table
     assert "pm-task" not in table  # empty task is omitted
     assert "\n" not in table
+
+
+def test_disagreement_card_html() -> None:
+    paper_a = {"title": "CoT <works>", "link": "https://arxiv.org/abs/a", "published": "2022-01-28T00:00:00Z"}
+    paper_b = {"title": "Thought Experiment", "link": "https://arxiv.org/abs/b", "published": "2023-06-25T00:00:00Z"}
+    flag = {
+        "topic": "", "question": "does CoT help accuracy", "explanation": "They conflict.",
+        "quote_a": "CoT improves accuracy.", "quote_b": "CoT reduces accuracy by 4%.",
+    }
+
+    card = components.disagreement_card_html(flag, {"a": paper_a, "b": paper_b, "shared": ["GSM8K"]})
+
+    assert "Possible disagreement" in card
+    assert "<h3>does CoT help accuracy</h3>" in card  # falls back to the verified question
+    assert "CoT &lt;works&gt;" in card
+    assert card.index("CoT improves accuracy.") < card.index("CoT reduces accuracy by 4%.")
+    assert "Both use" in card and "GSM8K" in card
+    assert "\n" not in card

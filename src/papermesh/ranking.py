@@ -17,6 +17,11 @@ RECENCY_HALF_LIFE_YEARS = 3.0
 _model = SentenceTransformer(MODEL_NAME)
 
 
+def embed(texts: list[str]) -> np.ndarray:
+    """Unit-length sentence embeddings, one row per text (dot product == cosine similarity)."""
+    return _model.encode(texts, normalize_embeddings=True)
+
+
 def rank_papers(query: str, papers: list[dict]) -> list[dict]:
     """Return copies of `papers` with a relevance_score (0-1), sorted descending."""
     if not papers:

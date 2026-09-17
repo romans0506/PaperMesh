@@ -245,3 +245,37 @@ def methodology_table_html(entries: list[tuple[dict, dict]]) -> str:
         "<th>Paper</th><th>Task &amp; method</th><th>Data &amp; metrics</th><th>Key results</th>"
         f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
     )
+
+
+# ---------- Disagreements ----------
+
+def _side_html(label: str, paper: dict, quote: str) -> str:
+    return (
+        '<div class="pm-side">'
+        f'<div class="pm-side-label">{label}</div>'
+        f'<a class="pm-side-title" href="{escape(paper["link"])}" target="_blank" rel="noopener">'
+        f'{escape(paper["title"])}</a>'
+        f'<div class="pm-side-year">{paper["published"][:4]}</div>'
+        f'<div class="pm-quote">{escape(quote)}</div>'
+        "</div>"
+    )
+
+
+def disagreement_card_html(flag: dict, pair: dict) -> str:
+    shared = ""
+    if pair["shared"]:
+        chips = "".join(f'<span class="pm-chip">{escape(name)}</span>' for name in pair["shared"])
+        shared = f'<div class="pm-dis-shared"><span>Both use</span>{chips}</div>'
+    return (
+        '<article class="pm-dis">'
+        '<div class="pm-dis-badge">Possible disagreement</div>'
+        f'<h3>{escape(flag["topic"] or flag["question"])}</h3>'
+        f'<p class="pm-dis-why">{escape(flag["explanation"])}</p>'
+        '<div class="pm-dis-sides">'
+        f'{_side_html("Paper A says", pair["a"], flag["quote_a"])}'
+        '<div class="pm-dis-vs">vs</div>'
+        f'{_side_html("Paper B says", pair["b"], flag["quote_b"])}'
+        "</div>"
+        f"{shared}"
+        "</article>"
+    )

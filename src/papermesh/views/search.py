@@ -1,4 +1,4 @@
-"""Search page: summary, ranked papers, reading order, methodology table, and citation graph."""
+"""Search page: summary, ranked papers, reading order, methods table, disagreements, and citation graph."""
 
 from html import escape
 
@@ -8,6 +8,7 @@ import streamlit as st
 from papermesh import components
 from papermesh.arxiv_client import search_arxiv
 from papermesh.citation_graph import build_citation_graph, result_node_key, shared_foundations, to_graph_data
+from papermesh.consensus import cached_check, candidate_pairs, check_pair
 from papermesh.keywords import extract_keywords
 from papermesh.library import paper_key
 from papermesh.llm import LLMError, model_name
@@ -16,6 +17,7 @@ from papermesh.ranking import (
     DEFAULT_CITATION_WEIGHT,
     DEFAULT_RECENCY_WEIGHT,
     DEFAULT_RELEVANCE_WEIGHT,
+    embed,
     rank_papers,
     weighted_rank,
 )
@@ -29,8 +31,10 @@ WEIGHT_KEYS = {
     "w_citations": DEFAULT_CITATION_WEIGHT,
     "w_recency": DEFAULT_RECENCY_WEIGHT,
 }
-VIEWS = ["Papers", "Reading order", "Methods", "Citation graph"]
+VIEWS = ["Papers", "Reading order", "Methods", "Disagreements", "Citation graph"]
 METHOD_COUNTS = [5, 10, 20]
+# Papers considered -> most comparable pairs checked.
+DISAGREEMENT_SCOPES = {10: 12, 20: 24}
 GRAPH_HEIGHT_PX = 680
 
 
@@ -286,6 +290,89 @@ def render_methods(papers: list[dict], query: str) -> None:
     )
 
 
+def comparable_pairs(papers: list[dict], max_pairs: int) -> list[dict]:
+    entries = [(p, cached_extraction(p)) for p in papers]
+    vectors = embed([p["abstract"] for p, _ in entries])
+    return candidate_pairs(entries, vectors @ vectors.T, max_pairs)
+
+
+def find_disagreements(papers: list[dict], max_pairs: int) -> None:
+    progress = st.progress(0.0, text="Starting the model…")
+    missing = [p for p in papers if cached_extraction(p) is None]
+    for done, paper in enumerate(missing):
+        progress.progress(done / len(missing) * 0.4, text=f"Reading {done + 1} of {len(missing)}: {paper['title'][:70]}")
+        try:
+            extract_methodology(paper)
+        except LLMError as e:
+            progress.empty()
+            st.error(f"Stopped: {e}")
+            return
+
+    pairs = [pair for pair in comparable_pairs(papers, max_pairs) if cached_check(pair) is None]
+    for done, pair in enumerate(pairs):
+        progress.progress(0.4 + done / len(pairs) * 0.6, text=f"Comparing pair {done + 1} of {len(pairs)}")
+        try:
+            check_pair(pair)
+        except LLMError as e:
+            progress.empty()
+            st.error(f"Stopped: {e}")
+            return
+    progress.empty()
+    st.rerun()
+
+
+def render_disagreements(papers: list[dict]) -> None:
+    with st.container(horizontal=True, horizontal_alignment="distribute", vertical_alignment="center"):
+        scope = st.segmented_control(
+            "Papers to compare",
+            list(DISAGREEMENT_SCOPES),
+            format_func=lambda n: f"Top {n}",
+            default=10,
+            required=True,
+            label_visibility="collapsed",
+            key="disagreement_scope",
+        )
+        top = papers[:scope]
+        max_pairs = DISAGREEMENT_SCOPES[scope]
+        ready = all(cached_extraction(p) is not None for p in top)
+        pairs = comparable_pairs(top, max_pairs) if ready else []
+        unchecked = not ready or any(cached_check(pair) is None for pair in pairs)
+        if unchecked and st.button(
+            "Find disagreements", icon=":material/compare_arrows:", type="primary", key="pm-disagree"
+        ):
+            find_disagreements(top, max_pairs)
+
+    html(
+        f'<p class="pm-reading-summary">Found by {escape(model_name())} and double-checked: both quotes appear word '
+        "for word in the abstracts, and a second pass confirmed the conflict. It can still be wrong, so read both "
+        "sides. Agreements aren’t shown, because a small model can’t judge them reliably.</p>"
+    )
+
+    if unchecked:
+        html(components.empty_state_html(
+            "Where do these papers contradict each other?",
+            f"Compares up to {max_pairs} closely related pairs among the top {scope} papers, looking for findings "
+            "that conflict. Takes a minute or so the first time; results are saved.",
+        ))
+        return
+
+    flags = [(flag, pair) for pair in pairs if (flag := cached_check(pair))]
+    count = len(flags)
+    html(
+        f'<p class="pm-dis-summary">{count} possible disagreement{"s" if count != 1 else ""} '
+        f"in {len(pairs)} compared pair{'s' if len(pairs) != 1 else ''}</p>"
+    )
+    if not flags:
+        html(components.empty_state_html(
+            "No disagreements found",
+            "None of the compared papers make findings that clearly conflict. That usually means they study "
+            "different questions, not that they all agree. Try Top 20 to compare more pairs.",
+        ))
+        return
+    for flag, pair in flags:
+        html(components.disagreement_card_html(flag, pair))
+
+
 def render_graph(results: dict) -> None:
     if not results["graph_html"]:
         html(components.summary_html("No citation links found between these papers.", muted=True))
@@ -335,5 +422,7 @@ def render() -> None:
         render_reading_order(results, papers, saved_keys)
     elif view == "Methods":
         render_methods(papers, results["query"])
+    elif view == "Disagreements":
+        render_disagreements(papers)
     else:
         render_papers(papers, results["query"], saved_keys)

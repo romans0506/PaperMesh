@@ -53,6 +53,11 @@ reading-order step; track reading status and notes on the Library page. Stored l
 extracted from each paper's abstract by the LLM, with dataset/metric filters and CSV export. Replies are
 checked against the abstract (names must appear in it, numbers must match) to filter out invented details.
 
+✅ **Step 6 implemented** — possible disagreements: closely related paper pairs are checked for conflicting
+findings, shown as two quotes side by side. Every flag is double-checked (quotes verified word for word, plus a
+second model pass on just the two quotes). Agreements are deliberately not shown: in testing, the local model
+labelled almost any related pair as agreeing.
+
 Summaries run on a local model via [Ollama](https://ollama.com) by default (free):
 
 ```bash
@@ -75,6 +80,7 @@ To use Claude instead, set `LLM_BACKEND=claude` and `ANTHROPIC_API_KEY` in `.env
 - `src/papermesh/llm.py` — single entry point for LLM calls (Ollama or `claude-sonnet-5`), incl. JSON-schema output
 - `src/papermesh/summarizer.py` — 150–250 word overview from the top 10 papers
 - `src/papermesh/methodology.py` — per-paper extraction + grounding checks; raw replies cached in `data/methodology_cache/`
+- `src/papermesh/consensus.py` — pair selection, find + verify passes for disagreements; cached in `data/disagreement_cache/`
 - `src/papermesh/app.py` — Streamlit entry point + top navigation
 - `src/papermesh/views/` — the Search and Library pages
 - `src/papermesh/components.py` + `src/papermesh/assets/` — page styles (`app.css`), paper cards, and the
@@ -89,4 +95,4 @@ Set `PAPERMESH_DB=path/to/other.db` to try things without touching your real lib
 
 The first run downloads the sentence-transformers model (~90 MB). Semantic Scholar works without an API key; set `SEMANTIC_SCHOLAR_API_KEY` in `.env` if you hit rate limits.
 
-Next: step 6 (consensus / disagreement flags).
+All six roadmap steps are implemented.
