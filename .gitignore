@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / secrets
+.env
+
+# Data (cached papers, embeddings — regenerable, don't commit)
+data/*
+!data/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

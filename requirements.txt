@@ -1,0 +1,10 @@
+requests
+feedparser
+pandas
+jupyter
+python-dotenv
+streamlit
+sentence-transformers
+scikit-learn
+anthropic
+pytest
