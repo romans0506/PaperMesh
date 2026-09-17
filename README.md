@@ -3,7 +3,7 @@
 An AI agent for exploring ML/CS research literature: search a topic, get a synthesized
 summary, ranked and related papers, instead of skimming dozens of PDFs one by one.
 
-## Planned features
+## Planned features/done
 
 - **Search & summary** — search a topic, get an LLM-synthesized overview of the field
 - **Keyword extraction** — key terms per paper and per topic
@@ -38,22 +38,22 @@ pip install -r requirements.txt
 
 ## Status
 
-✅ **Step 1 implemented** — search + LLM topic summary + per-paper keywords + relevance ranking.
+✅ **Feature 1** — search + LLM topic summary + per-paper keywords + relevance ranking.
 
-✅ **Step 2 implemented** — weighted ranking (relevance + citations + recency, adjustable under "Ranking") and a citation graph with shared foundational papers.
+✅ **Feature 2** — weighted ranking (relevance + citations + recency, adjustable under "Ranking") and a citation graph with shared foundational papers.
 
-✅ **Step 3 implemented** — reading order: foundations → core → frontier, with every paper placed after
+✅ **Feature 3** — reading order: foundations → core → frontier, with every paper placed after
 the papers it cites (Quick / Standard / Deep lengths).
 
-✅ **Step 4 implemented** — personal library: save topics (with their overview) and papers from any card or
+✅ **Feature 4** — personal library: save topics (with their overview) and papers from any card or
 reading-order step; track reading status and notes on the Library page. Stored locally in SQLite
 (`data/papermesh.db`).
 
-✅ **Step 5 implemented** — methodology comparison table: task, method, datasets, metrics and key results
+✅ **Feature 5** — methodology comparison table: task, method, datasets, metrics and key results
 extracted from each paper's abstract by the LLM, with dataset/metric filters and CSV export. Replies are
 checked against the abstract (names must appear in it, numbers must match) to filter out invented details.
 
-✅ **Step 6 implemented** — possible disagreements: closely related paper pairs are checked for conflicting
+✅ **Feature 6** — possible disagreements: closely related paper pairs are checked for conflicting
 findings, shown as two quotes side by side. Every flag is double-checked (quotes verified word for word, plus a
 second model pass on just the two quotes). Agreements are deliberately not shown: in testing, the local model
 labelled almost any related pair as agreeing.
@@ -95,4 +95,4 @@ Set `PAPERMESH_DB=path/to/other.db` to try things without touching your real lib
 
 The first run downloads the sentence-transformers model (~90 MB). Semantic Scholar works without an API key; set `SEMANTIC_SCHOLAR_API_KEY` in `.env` if you hit rate limits.
 
-All six roadmap steps are implemented.
+
