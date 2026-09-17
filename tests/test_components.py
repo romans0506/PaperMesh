@@ -71,3 +71,22 @@ def test_saved_paper_and_topic_html() -> None:
     html = components.topic_card_html(topic)
     assert "Saved Sep 17, 2026 · 1 saved paper<" in html
     assert "…" in html
+
+
+def test_methodology_table_html_escapes_and_marks_missing() -> None:
+    paper = {"title": "A <b>paper</b>", "link": "https://arxiv.org/abs/1", "published": "2024-01-01T00:00:00Z"}
+    row = {
+        "contribution": "new method", "task": "", "method": "Model X",
+        "datasets": ["AudioCaps"], "metrics": [], "results": ["FAD 1.2"],
+    }
+
+    table = components.methodology_table_html([(paper, row)])
+
+    assert "A &lt;b&gt;paper&lt;/b&gt;" in table
+    assert '<span class="pm-chip ">AudioCaps</span>' in table
+    assert "Metrics" not in table  # empty sections are omitted
+    no_data = components.methodology_table_html([(paper, {**row, "datasets": []})])
+    assert '<td class="pm-col-data"><span class="pm-none">—</span></td>' in no_data
+    assert "<li>FAD 1.2</li>" in table
+    assert "pm-task" not in table  # empty task is omitted
+    assert "\n" not in table

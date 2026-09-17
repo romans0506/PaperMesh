@@ -49,6 +49,10 @@ the papers it cites (Quick / Standard / Deep lengths).
 reading-order step; track reading status and notes on the Library page. Stored locally in SQLite
 (`data/papermesh.db`).
 
+✅ **Step 5 implemented** — methodology comparison table: task, method, datasets, metrics and key results
+extracted from each paper's abstract by the LLM, with dataset/metric filters and CSV export. Replies are
+checked against the abstract (names must appear in it, numbers must match) to filter out invented details.
+
 Summaries run on a local model via [Ollama](https://ollama.com) by default (free):
 
 ```bash
@@ -58,7 +62,7 @@ streamlit run src/papermesh/app.py
 pytest
 ```
 
-To use Claude instead, set `SUMMARY_BACKEND=claude` and `ANTHROPIC_API_KEY` in `.env`
+To use Claude instead, set `LLM_BACKEND=claude` and `ANTHROPIC_API_KEY` in `.env`
 (billed separately via platform.claude.com).
 
 - `src/papermesh/arxiv_client.py` — arXiv search, responses cached in `data/arxiv_cache/` for 24h
@@ -68,7 +72,9 @@ To use Claude instead, set `SUMMARY_BACKEND=claude` and `ANTHROPIC_API_KEY` in `
 - `src/papermesh/reading_order.py` — stages + citation-depth ordering over the citation graph
 - `src/papermesh/library.py` — SQLite storage for saved topics and papers (schema versioned via `PRAGMA user_version`)
 - `src/papermesh/keywords.py` — top TF-IDF terms per paper, computed over the current result set
-- `src/papermesh/summarizer.py` — 150–250 word overview from the top 10 papers (Ollama, or `claude-sonnet-5`)
+- `src/papermesh/llm.py` — single entry point for LLM calls (Ollama or `claude-sonnet-5`), incl. JSON-schema output
+- `src/papermesh/summarizer.py` — 150–250 word overview from the top 10 papers
+- `src/papermesh/methodology.py` — per-paper extraction + grounding checks; raw replies cached in `data/methodology_cache/`
 - `src/papermesh/app.py` — Streamlit entry point + top navigation
 - `src/papermesh/views/` — the Search and Library pages
 - `src/papermesh/components.py` + `src/papermesh/assets/` — page styles (`app.css`), paper cards, and the
@@ -83,4 +89,4 @@ Set `PAPERMESH_DB=path/to/other.db` to try things without touching your real lib
 
 The first run downloads the sentence-transformers model (~90 MB). Semantic Scholar works without an API key; set `SEMANTIC_SCHOLAR_API_KEY` in `.env` if you hit rate limits.
 
-Next: step 5 (methodology comparison table).
+Next: step 6 (consensus / disagreement flags).

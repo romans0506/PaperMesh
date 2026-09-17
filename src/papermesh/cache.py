@@ -9,9 +9,11 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 DEFAULT_TTL_SECONDS = 24 * 60 * 60
 
 
-def read_json(path: Path, ttl_seconds: int = DEFAULT_TTL_SECONDS) -> Any | None:
-    """Return the cached value, or None if missing, expired, or unreadable."""
-    if not path.exists() or time.time() - path.stat().st_mtime > ttl_seconds:
+def read_json(path: Path, ttl_seconds: int | None = DEFAULT_TTL_SECONDS) -> Any | None:
+    """Return the cached value, or None if missing, expired, or unreadable. ttl_seconds=None never expires."""
+    if not path.exists():
+        return None
+    if ttl_seconds is not None and time.time() - path.stat().st_mtime > ttl_seconds:
         return None
     try:
         return json.loads(path.read_text(encoding="utf-8"))

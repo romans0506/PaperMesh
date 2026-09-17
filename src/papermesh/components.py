@@ -197,3 +197,51 @@ def saved_paper_html(paper: dict) -> str:
         f'<h3><a href="{escape(paper["link"])}" target="_blank" rel="noopener">{escape(paper["title"])}</a></h3>'
         f"{authors}{note}</div>"
     )
+
+
+# ---------- Methodology table ----------
+
+def _chips(values: list[str], css_class: str = "") -> str:
+    if not values:
+        return '<span class="pm-none">—</span>'
+    return "".join(f'<span class="pm-chip {css_class}">{escape(v)}</span>' for v in values)
+
+
+def _data_cell(row: dict) -> str:
+    parts = []
+    if row["datasets"]:
+        parts.append(f'<div class="pm-cell-label">Datasets</div><div class="pm-chips">{_chips(row["datasets"])}</div>')
+    if row["metrics"]:
+        parts.append(
+            f'<div class="pm-cell-label">Metrics</div>'
+            f'<div class="pm-chips">{_chips(row["metrics"], "pm-chip-metric")}</div>'
+        )
+    return "".join(parts) or '<span class="pm-none">—</span>'
+
+
+def methodology_table_html(entries: list[tuple[dict, dict]]) -> str:
+    """Comparison table; each entry is (paper, extraction row)."""
+    rows = []
+    for paper, row in entries:
+        results = (
+            "<ul>" + "".join(f"<li>{escape(r)}</li>" for r in row["results"]) + "</ul>"
+            if row["results"]
+            else '<span class="pm-none">—</span>'
+        )
+        task = f'<div class="pm-task">{escape(row["task"])}</div>' if row["task"] else ""
+        rows.append(
+            "<tr>"
+            f'<td class="pm-col-paper"><a href="{escape(paper["link"])}" target="_blank" rel="noopener">'
+            f'{escape(paper["title"])}</a>'
+            f'<div class="pm-paper-meta">{paper["published"][:4]}'
+            f'<span class="pm-kind">{escape(row["contribution"])}</span></div></td>'
+            f'<td class="pm-col-method">{task}<div>{escape(row["method"]) or "—"}</div></td>'
+            f'<td class="pm-col-data">{_data_cell(row)}</td>'
+            f'<td class="pm-col-results">{results}</td>'
+            "</tr>"
+        )
+    return (
+        '<div class="pm-table-wrap"><table class="pm-table"><thead><tr>'
+        "<th>Paper</th><th>Task &amp; method</th><th>Data &amp; metrics</th><th>Key results</th>"
+        f'</tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
+    )

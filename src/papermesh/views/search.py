@@ -1,4 +1,6 @@
-"""Search page: summary, ranked papers, reading order, and citation graph."""
+"""Search page: summary, ranked papers, reading order, methodology table, and citation graph."""
+
+from html import escape
 
 import requests
 import streamlit as st
@@ -8,6 +10,8 @@ from papermesh.arxiv_client import search_arxiv
 from papermesh.citation_graph import build_citation_graph, result_node_key, shared_foundations, to_graph_data
 from papermesh.keywords import extract_keywords
 from papermesh.library import paper_key
+from papermesh.llm import LLMError, model_name
+from papermesh.methodology import cached_extraction, extract_methodology, matches_filters, most_common, table_csv
 from papermesh.ranking import (
     DEFAULT_CITATION_WEIGHT,
     DEFAULT_RECENCY_WEIGHT,
@@ -25,7 +29,8 @@ WEIGHT_KEYS = {
     "w_citations": DEFAULT_CITATION_WEIGHT,
     "w_recency": DEFAULT_RECENCY_WEIGHT,
 }
-VIEWS = ["Papers", "Reading order", "Citation graph"]
+VIEWS = ["Papers", "Reading order", "Methods", "Citation graph"]
+METHOD_COUNTS = [5, 10, 20]
 GRAPH_HEIGHT_PX = 680
 
 
@@ -206,6 +211,81 @@ def render_reading_order(results: dict, papers: list[dict], saved_keys: set[str]
                 }, saved_keys)
 
 
+def analyze_papers(papers: list[dict]) -> None:
+    progress = st.progress(0.0, text="Starting the model…")
+    for done, paper in enumerate(papers):
+        progress.progress(done / len(papers), text=f"Analyzing {done + 1} of {len(papers)}: {paper['title'][:70]}")
+        try:
+            extract_methodology(paper)
+        except LLMError as e:
+            progress.empty()
+            st.error(f"Analysis stopped: {e}")
+            return
+    progress.empty()
+    st.rerun()  # redraw the controls now that nothing is missing
+
+
+def render_methods(papers: list[dict], query: str) -> None:
+    with st.container(horizontal=True, horizontal_alignment="distribute", vertical_alignment="center"):
+        count = st.segmented_control(
+            "Papers to compare",
+            METHOD_COUNTS,
+            format_func=lambda n: f"Top {n}",
+            default=10,
+            required=True,
+            label_visibility="collapsed",
+            key="methods_count",
+        )
+        missing = [p for p in papers[:count] if cached_extraction(p) is None]
+        if missing and st.button(
+            f"Analyze {len(missing)} paper{'s' if len(missing) != 1 else ''}",
+            icon=":material/auto_awesome:",
+            type="primary",
+            key="pm-analyze",
+        ):
+            analyze_papers(missing)
+
+    html(
+        f'<p class="pm-reading-summary">Extracted from each paper’s title and abstract by {escape(model_name())}. '
+        "Only details the abstract actually states are kept, so blanks are common.</p>"
+    )
+
+    entries = [(p, row) for p in papers[:count] if (row := cached_extraction(p)) is not None]
+    if not entries:
+        html(components.empty_state_html(
+            "Compare how these papers work",
+            f"Analyze the top {count} papers to see each one's task, method, datasets, metrics and key results "
+            "side by side. Takes a few seconds per paper the first time; results are saved.",
+        ))
+        return
+
+    rows = [row for _, row in entries]
+    dataset_counts = dict(most_common(rows, "datasets"))
+    metric_counts = dict(most_common(rows, "metrics"))
+    datasets = st.pills(
+        "Datasets", list(dataset_counts), selection_mode="multi", key="methods_datasets",
+        format_func=lambda d: f"{d} · {dataset_counts[d]}",
+    ) if dataset_counts else []
+    metrics = st.pills(
+        "Metrics", list(metric_counts), selection_mode="multi", key="methods_metrics",
+        format_func=lambda m: f"{m} · {metric_counts[m]}",
+    ) if metric_counts else []
+
+    shown = [(p, row) for p, row in entries if matches_filters(row, datasets or [], metrics or [])]
+    if not shown:
+        html(components.empty_state_html("No matches", "No analyzed paper uses all of the selected datasets and metrics."))
+        return
+    html(components.methodology_table_html(shown))
+    st.download_button(
+        "Download CSV",
+        data=table_csv(shown),
+        file_name=f"papermesh-methods-{widget_id(query)}.csv",
+        mime="text/csv",
+        icon=":material/download:",
+        type="tertiary",
+    )
+
+
 def render_graph(results: dict) -> None:
     if not results["graph_html"]:
         html(components.summary_html("No citation links found between these papers.", muted=True))
@@ -253,5 +333,7 @@ def render() -> None:
         render_graph(results)
     elif view == "Reading order":
         render_reading_order(results, papers, saved_keys)
+    elif view == "Methods":
+        render_methods(papers, results["query"])
     else:
         render_papers(papers, results["query"], saved_keys)
