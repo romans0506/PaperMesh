@@ -34,6 +34,8 @@ def build_citation_graph(
             year=int(paper["published"][:4]),
             citation_count=paper.get("citation_count"),
             link=paper["link"],
+            arxiv_id=paper["id"],
+            s2_id=paper["s2_id"],
             in_results=True,
             cited_by_results=0,
         )
@@ -64,6 +66,8 @@ def build_citation_graph(
             year=ref["year"],
             citation_count=ref["citation_count"],
             link=_external_link(ref),
+            arxiv_id=ref["arxiv_id"],
+            s2_id=key,
             in_results=False,
             cited_by_results=len(external_citers[key]),
         )

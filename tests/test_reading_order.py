@@ -10,6 +10,8 @@ def _node(graph: nx.DiGraph, key: str, year: int, in_results: bool, citations: i
         year=year,
         citation_count=citations,
         link=f"https://example.org/{key}",
+        arxiv_id=None,
+        s2_id=key,
         in_results=in_results,
         cited_by_results=0,
     )

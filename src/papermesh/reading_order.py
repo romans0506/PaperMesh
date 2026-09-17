@@ -120,6 +120,8 @@ def build_reading_order(
             "title": attrs["title"],
             "year": attrs["year"],
             "link": attrs["link"],
+            "arxiv_id": attrs["arxiv_id"],
+            "s2_id": attrs["s2_id"],
             "citation_count": attrs["citation_count"],
             "stage": stages[node],
             "reason": _reason(graph, node, stages[node], selected),

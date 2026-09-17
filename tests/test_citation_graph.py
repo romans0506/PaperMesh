@@ -42,6 +42,8 @@ def test_keeps_only_references_shared_by_several_results() -> None:
     assert foundations[0]["cited_by_results"] == 3
     assert foundations[0]["link"] == "https://arxiv.org/abs/1706.03762"
     assert foundations[1]["link"] == "https://www.semanticscholar.org/paper/s2-adam"
+    assert (foundations[0]["arxiv_id"], foundations[0]["s2_id"]) == ("1706.03762", "s2-attn")
+    assert (foundations[1]["arxiv_id"], foundations[1]["s2_id"]) == (None, "s2-adam")
 
 
 def test_max_foundations_limits_external_nodes() -> None:

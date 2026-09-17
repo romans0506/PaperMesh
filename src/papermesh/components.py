@@ -1,6 +1,7 @@
 """HTML building blocks for the Streamlit UI (styles live in assets/app.css)."""
 
 import json
+from datetime import datetime
 from functools import lru_cache
 from html import escape
 from pathlib import Path
@@ -67,7 +68,7 @@ def paper_card_html(rank: int, paper: dict) -> str:
         meta.append(f"{citations:,} citation{'s' if citations != 1 else ''}")
     chips = "".join(f'<span class="pm-chip">{escape(k)}</span>' for k in paper["keywords"])
     return (
-        '<article class="pm-card">'
+        '<div class="pm-card-content">'
         f'<div class="pm-card-top"><span class="pm-rank">{rank:02d}</span>'
         f'<span class="pm-meta">{" · ".join(meta)}</span>'
         f'<span class="pm-score">{paper["score"]:.2f}</span></div>'
@@ -80,13 +81,8 @@ def paper_card_html(rank: int, paper: dict) -> str:
         "</div>"
         f'<div class="pm-chips">{chips}</div>'
         f'<details><summary>Abstract</summary><p>{escape(paper["abstract"])}</p></details>'
-        "</article>"
+        "</div>"
     )
-
-
-def paper_list_html(papers: list[dict]) -> str:
-    cards = "".join(paper_card_html(rank, paper) for rank, paper in enumerate(papers, start=1))
-    return f'<div class="pm-list">{cards}</div>'
 
 
 def foundations_html(foundations: list[dict]) -> str:
@@ -110,7 +106,24 @@ def citation_graph_html(graph_data: dict) -> str:
     return _graph_template().replace("/*__GRAPH_DATA__*/", payload)
 
 
-def _reading_step_html(item: dict) -> str:
+def reading_summary_html(items: list[dict]) -> str:
+    counts = [
+        f"{sum(1 for i in items if i['stage'] == stage)} {title.lower()}"
+        for stage, (title, _) in STAGES.items()
+        if any(i["stage"] == stage for i in items)
+    ]
+    return f'<p class="pm-reading-summary">{len(items)} papers · {" · ".join(counts)}</p>'
+
+
+def stage_header_html(number: int, stage: str) -> str:
+    title, description = STAGES[stage]
+    return (
+        f'<div class="pm-stage-head"><span class="pm-stage-badge">{number}</span>'
+        f"<div><h3>{title}</h3><p>{description}</p></div></div>"
+    )
+
+
+def reading_step_html(item: dict) -> str:
     meta = [str(item["year"]) if item["year"] else "Year unknown"]
     if item["citation_count"] is not None:
         meta.append(f"{item['citation_count']:,} citations")
@@ -119,35 +132,68 @@ def _reading_step_html(item: dict) -> str:
         label = "step" if len(item["after_steps"]) == 1 else "steps"
         after = f'<div class="pm-step-after">After {label} {", ".join(map(str, item["after_steps"]))}</div>'
     return (
-        f'<li class="pm-step pm-step-{item["stage"]}">'
+        f'<div class="pm-step pm-step-{item["stage"]}">'
         '<span class="pm-dot"></span>'
-        '<div class="pm-step-body">'
         f'<div class="pm-step-top"><span class="pm-step-num">Step {item["step"]}</span>'
         f'<span>{" · ".join(meta)}</span></div>'
         f'<a class="pm-step-title" href="{escape(item["link"])}" target="_blank" rel="noopener">'
         f'{escape(item["title"])}</a>'
         f'<div class="pm-step-reason">{escape(item["reason"])}</div>'
         f"{after}"
-        "</div></li>"
+        "</div>"
     )
 
 
-def reading_order_html(items: list[dict]) -> str:
-    sections = []
-    for number, stage in enumerate((s for s in STAGES if any(i["stage"] == s for i in items)), start=1):
-        title, description = STAGES[stage]
-        steps = "".join(_reading_step_html(i) for i in items if i["stage"] == stage)
-        sections.append(
-            '<section class="pm-stage">'
-            f'<div class="pm-stage-head"><span class="pm-stage-badge">{number}</span>'
-            f"<div><h3>{title}</h3><p>{description}</p></div></div>"
-            f'<ol class="pm-steps">{steps}</ol>'
-            "</section>"
-        )
-    counts = [
-        f"{sum(1 for i in items if i['stage'] == stage)} {title.lower()}"
-        for stage, (title, _) in STAGES.items()
-        if any(i["stage"] == stage for i in items)
-    ]
-    summary = f'<p class="pm-reading-summary">{len(items)} papers · {" · ".join(counts)}</p>'
-    return f'<div class="pm-reading">{summary}{"".join(sections)}</div>'
+# ---------- Library ----------
+
+STATUS_LABELS = {"to_read": "To read", "reading": "Reading", "read": "Read"}
+
+
+def page_header_html(eyebrow: str, title: str, subtitle: str) -> str:
+    return (
+        '<div class="pm-page-head">'
+        f'<p class="pm-eyebrow">{escape(eyebrow)}</p><h1>{escape(title)}</h1>'
+        f'<p class="pm-sub">{escape(subtitle)}</p></div>'
+    )
+
+
+def empty_state_html(title: str, body: str) -> str:
+    return f'<div class="pm-empty"><h4>{escape(title)}</h4><p>{escape(body)}</p></div>'
+
+
+def _saved_date(iso_timestamp: str) -> str:
+    saved = datetime.fromisoformat(iso_timestamp)
+    return f"{saved:%b} {saved.day}, {saved.year}"
+
+
+def topic_card_html(topic: dict, max_summary_chars: int = 180) -> str:
+    summary = (topic["summary"] or "").strip()
+    if len(summary) > max_summary_chars:
+        summary = summary[: max_summary_chars - 1].rsplit(" ", 1)[0] + "…"
+    count = topic["paper_count"]
+    meta = f"Saved {_saved_date(topic['saved_at'])}"
+    if count:
+        meta += f" · {count} saved paper{'s' if count != 1 else ''}"
+    summary_html = f'<p class="pm-topic-summary">{escape(summary)}</p>' if summary else ""
+    return (
+        '<div class="pm-topic">'
+        f'<div class="pm-topic-meta">{meta}</div>'
+        f'<h3>{escape(topic["display"])}</h3>{summary_html}</div>'
+    )
+
+
+def saved_paper_html(paper: dict) -> str:
+    meta = [str(paper["year"]) if paper["year"] else "Year unknown"]
+    if paper["citation_count"] is not None:
+        meta.append(f"{paper['citation_count']:,} citations")
+    if paper["source_query"]:
+        meta.append(f"from “{escape(paper['source_query'])}”")
+    authors = f'<p class="pm-authors">{escape(_authors(paper["authors"]))}</p>' if paper["authors"] else ""
+    note = f'<p class="pm-note-text">{escape(paper["note"])}</p>' if paper["note"].strip() else ""
+    return (
+        '<div class="pm-saved">'
+        f'<div class="pm-card-top"><span class="pm-status pm-status-{paper["status"]}">'
+        f'{STATUS_LABELS[paper["status"]]}</span><span class="pm-meta">{" · ".join(meta)}</span></div>'
+        f'<h3><a href="{escape(paper["link"])}" target="_blank" rel="noopener">{escape(paper["title"])}</a></h3>'
+        f"{authors}{note}</div>"
+    )

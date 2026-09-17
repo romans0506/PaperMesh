@@ -13,6 +13,11 @@ font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;70
 headingFont = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
 headingFontWeights = 600
 
+[server]
+# The file watcher scans every imported module; transformers' optional vision modules make it
+# log ~100 tracebacks on startup. Restart the app after code changes instead.
+fileWatcherType = "none"
+
 [client]
 toolbarMode = "minimal"
 

@@ -15,6 +15,8 @@
 /* ---------- Chrome ---------- */
 [data-testid="stHeader"] { background: rgba(255, 255, 255, 0.72); backdrop-filter: saturate(180%) blur(20px); }
 [data-testid="stDecoration"] { display: none; }
+/* Streamlit adds hover anchor links to markdown headings; they clash with the custom headers. */
+[data-testid="stHeaderActionElements"] { display: none !important; }
 [data-testid="stMainBlockContainer"], .block-container {
   max-width: 1020px;
   padding-top: 3.5rem;
@@ -97,26 +99,35 @@ html, body, [class*="st-"] { -webkit-font-smoothing: antialiased; }
 [data-testid="stPopoverButton"] p { font-weight: 500; }
 
 /* ---------- Paper cards ---------- */
-.pm-list { display: flex; flex-direction: column; gap: 14px; margin-top: 0.5rem; }
-.pm-card {
+/* The keyed Streamlit container *is* the card, so it can hold real buttons. */
+[class*="st-key-pmcard-"], [class*="st-key-pmsaved-"] {
+  position: relative; gap: 0.5rem;
   background: var(--pm-bg); border: 1px solid var(--pm-line); border-radius: 22px;
   padding: 1.5rem 1.75rem 1.35rem;
   transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
 }
-.pm-card:hover { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.07); transform: translateY(-2px); border-color: transparent; }
+[class*="st-key-pmcard-"]:hover, [class*="st-key-pmsaved-"]:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.07); transform: translateY(-2px); border-color: transparent;
+}
+/* Save button pinned to the card's top-right corner. */
+[class*="st-key-pmcard-"] [class*="st-key-pmsave-"] { position: absolute; top: 1.05rem; right: 1.25rem; width: auto; z-index: 2; }
+[class*="st-key-pmsave-"] button { color: var(--pm-link) !important; font-weight: 500; min-height: 2rem; padding: 0 0.5rem; }
+[class*="st-key-pmsave-"] button p { font-weight: 500; }
+
 .pm-card-top { display: flex; align-items: center; gap: 0.75rem; font-size: 0.85rem; color: var(--pm-text-3); }
+.pm-card-content .pm-card-top { padding-right: 6.5rem; }
 .pm-rank { font-weight: 600; color: var(--pm-text-3); font-variant-numeric: tabular-nums; }
 .pm-meta { flex: 1; }
 .pm-score {
   font-weight: 600; font-size: 0.85rem; color: var(--pm-blue); background: rgba(0, 113, 227, 0.08);
   border-radius: 980px; padding: 0.2rem 0.65rem; font-variant-numeric: tabular-nums;
 }
-.pm-card h3 {
+.pm-card-content h3, .pm-saved h3 {
   font-size: 1.28rem; line-height: 1.3; font-weight: 600; letter-spacing: -0.018em;
   margin: 0.55rem 0 0.3rem; padding: 0;
 }
-.pm-card h3 a { color: var(--pm-text) !important; text-decoration: none !important; }
-.pm-card h3 a:hover { color: var(--pm-link) !important; }
+.pm-card-content h3 a, .pm-saved h3 a { color: var(--pm-text) !important; text-decoration: none !important; }
+.pm-card-content h3 a:hover, .pm-saved h3 a:hover { color: var(--pm-link) !important; }
 .pm-authors { color: var(--pm-text-2); font-size: 0.95rem; margin: 0 0 1rem; }
 
 .pm-bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem 1.25rem; margin: 0 0 1rem; }
@@ -131,14 +142,14 @@ html, body, [class*="st-"] { -webkit-font-smoothing: antialiased; }
 .pm-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .pm-chip { font-size: 0.8rem; color: var(--pm-text-2); background: var(--pm-bg-alt); border-radius: 980px; padding: 0.28rem 0.7rem; }
 
-.pm-card details { margin-top: 0.9rem; }
-.pm-card summary {
+.pm-card-content details { margin-top: 0.9rem; }
+.pm-card-content summary {
   cursor: pointer; list-style: none; font-size: 0.9rem; font-weight: 500; color: var(--pm-link);
 }
-.pm-card summary::-webkit-details-marker { display: none; }
-.pm-card summary::after { content: " ›"; display: inline-block; transition: transform 0.2s ease; }
-.pm-card details[open] summary::after { transform: rotate(90deg); }
-.pm-card details p { color: var(--pm-text-2); font-size: 0.96rem; line-height: 1.6; margin: 0.6rem 0 0; }
+.pm-card-content summary::-webkit-details-marker { display: none; }
+.pm-card-content summary::after { content: " ›"; display: inline-block; transition: transform 0.2s ease; }
+.pm-card-content details[open] summary::after { transform: rotate(90deg); }
+.pm-card-content details p { color: var(--pm-text-2); font-size: 0.96rem; line-height: 1.6; margin: 0.6rem 0 0; }
 
 /* ---------- Shared foundations ---------- */
 .pm-foundations { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
@@ -152,11 +163,8 @@ html, body, [class*="st-"] { -webkit-font-smoothing: antialiased; }
 .pm-foundation .pm-f-meta { font-size: 0.85rem; color: var(--pm-text-3); }
 
 /* ---------- Reading order ---------- */
-.pm-reading { margin-top: 0.75rem; }
 .pm-reading-summary { color: var(--pm-text-2); font-size: 0.95rem; margin: 0.25rem 0 0; }
-.pm-stage { margin-top: 2.25rem; }
-.pm-stage:first-child { margin-top: 1rem; }
-.pm-stage-head { display: flex; gap: 0.9rem; align-items: flex-start; margin-bottom: 1rem; }
+.pm-stage-head { display: flex; gap: 0.9rem; align-items: flex-start; margin: 1.6rem 0 0.2rem; }
 .pm-stage-badge {
   flex: none; width: 2rem; height: 2rem; border-radius: 50%; display: grid; place-items: center;
   background: var(--pm-text); color: #fff; font-size: 0.9rem; font-weight: 600; margin-top: 0.1rem;
@@ -164,33 +172,29 @@ html, body, [class*="st-"] { -webkit-font-smoothing: antialiased; }
 .pm-stage-head h3 { font-size: 1.45rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.022em; margin: 0; padding: 0; color: var(--pm-text); }
 .pm-stage-head p { font-size: 0.98rem; color: var(--pm-text-2); margin: 0.2rem 0 0; }
 
-/* Streamlit's markdown styles indent lists; reset so the line and dots share one axis. */
-.pm-steps { list-style: none; margin: 0 !important; padding: 0 0 0 0.95rem !important; }
-.pm-step {
-  position: relative; display: flex; gap: 1.25rem; align-items: flex-start;
-  margin: 0 !important; padding: 0 0 0.7rem !important;
+/* Each step is a keyed container (pmstep-* / pmstepend-*): a grey card offset right of the timeline. */
+[class*="st-key-pmstep"] {
+  position: relative; margin-left: 2.6rem; gap: 0; overflow: visible;
+  background: var(--pm-bg-alt); border-radius: 18px; padding: 1rem 1.25rem 1.3rem;
+  transition: background 0.2s ease;
 }
-.pm-step:last-child { padding-bottom: 0 !important; }
-/* Timeline segment from this dot down to the next one, centered on the 12px dot. */
-.pm-step::before {
-  content: ""; position: absolute; left: 5px; top: 1.45rem; bottom: -1.45rem;
+[class*="st-key-pmstep"]:hover { background: #ececf0; }
+/* Timeline segment from this step's dot down to the next step's dot (not drawn after a stage's last step). */
+[class*="st-key-pmstep-"]::before {
+  content: ""; position: absolute; left: calc(-1.7rem + 5px); top: 1.45rem; bottom: calc(-1rem - 1.45rem);
   width: 2px; background: var(--pm-line);
 }
-.pm-step:last-child::before { display: none; }
 .pm-dot {
-  flex: none; position: relative; z-index: 1; width: 12px; height: 12px; border-radius: 50%;
-  margin-top: 1.45rem; box-shadow: 0 0 0 4px var(--pm-bg);
+  position: absolute; left: calc(-1.7rem - 1.25rem); top: 0.1rem; z-index: 1; width: 12px; height: 12px; border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--pm-bg);
 }
+.pm-step { position: relative; }
 .pm-step-foundations .pm-dot { background: var(--pm-text); }
 .pm-step-core .pm-dot { background: var(--pm-blue); }
 .pm-step-frontier .pm-dot { background: var(--pm-bg); border: 2.5px solid var(--pm-blue); }
+[class*="st-key-pmstep"] [class*="st-key-pmsave-"] { position: absolute; top: 0.55rem; right: 0.8rem; width: auto; z-index: 2; }
 
-.pm-step-body {
-  flex: 1; min-width: 0; background: var(--pm-bg-alt); border-radius: 18px; padding: 1rem 1.25rem 1.05rem;
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-.pm-step-body:hover { background: #ececf0; transform: translateX(3px); }
-.pm-step-top { display: flex; gap: 0.7rem; font-size: 0.8rem; color: var(--pm-text-3); }
+.pm-step-top { display: flex; gap: 0.7rem; font-size: 0.8rem; color: var(--pm-text-3); padding-right: 5.5rem; }
 .pm-step-num { font-weight: 600; color: var(--pm-text-2); }
 .pm-step-core .pm-step-num, .pm-step-frontier .pm-step-num { color: var(--pm-blue); }
 a.pm-step-title {
@@ -201,10 +205,44 @@ a.pm-step-title:hover { color: var(--pm-link) !important; }
 .pm-step-reason { font-size: 0.9rem; color: var(--pm-text-2); }
 .pm-step-after { font-size: 0.8rem; color: var(--pm-text-3); margin-top: 0.3rem; }
 
+/* ---------- Library ---------- */
+.pm-page-head { padding: 2.5rem 0 0.5rem; }
+.pm-page-head .pm-eyebrow { font-size: 0.95rem; font-weight: 600; color: var(--pm-blue); margin: 0 0 0.5rem; }
+.pm-page-head h1 {
+  font-size: clamp(2.4rem, 5vw, 3.5rem); line-height: 1.05; font-weight: 700; letter-spacing: -0.035em;
+  color: var(--pm-text); margin: 0; padding: 0;
+}
+.pm-page-head .pm-sub { font-size: 1.2rem; color: var(--pm-text-2); margin: 0.75rem 0 0; }
+
+.pm-empty { background: var(--pm-bg-alt); border-radius: 22px; padding: 2rem; text-align: center; }
+.pm-empty h4 { font-size: 1.1rem; font-weight: 600; color: var(--pm-text); margin: 0; padding: 0; }
+.pm-empty p { color: var(--pm-text-2); margin: 0.35rem 0 0; }
+
+.st-key-pmtopics { flex-wrap: wrap; }
+[class*="st-key-pmtopic-"] {
+  flex: 0 1 calc(50% - 0.75rem); min-width: 280px; align-self: flex-start; gap: 0.9rem;
+  background: var(--pm-bg-alt); border-radius: 22px; padding: 1.35rem 1.5rem 1.1rem;
+}
+.pm-topic-meta { font-size: 0.8rem; color: var(--pm-text-3); }
+.pm-topic h3 { font-size: 1.3rem; font-weight: 600; letter-spacing: -0.02em; color: var(--pm-text); margin: 0.3rem 0 0; padding: 0; }
+.pm-topic-summary { font-size: 0.92rem; line-height: 1.5; color: var(--pm-text-2); margin: 0.5rem 0 0; }
+[class*="st-key-pmtopic-"] button { min-height: 2.2rem; }
+
+.pm-saved .pm-card-top { padding-right: 0; }
+.pm-saved .pm-authors { margin-bottom: 0.3rem; }
+.pm-status { font-size: 0.75rem; font-weight: 600; border-radius: 980px; padding: 0.18rem 0.6rem; }
+.pm-status-to_read { color: var(--pm-text-2); background: var(--pm-bg-alt); }
+.pm-status-reading { color: var(--pm-blue); background: rgba(0, 113, 227, 0.09); }
+.pm-status-read { color: #248a3d; background: rgba(36, 138, 61, 0.1); }
+.pm-note-text {
+  font-size: 0.92rem; line-height: 1.5; color: var(--pm-text); background: #fffbea;
+  border-radius: 12px; padding: 0.6rem 0.85rem; margin: 0.5rem 0 0.2rem;
+}
+
 /* ---------- Graph iframe ---------- */
 iframe[title="st.iframe"], [data-testid="stIFrame"], .stIFrame { border-radius: 26px; }
 
 @media (max-width: 640px) {
   .pm-bars { grid-template-columns: 1fr; }
-  .pm-card { padding: 1.2rem 1.2rem 1.1rem; }
+  [class*="st-key-pmcard-"] { padding: 1.2rem 1.2rem 1.1rem; }
 }

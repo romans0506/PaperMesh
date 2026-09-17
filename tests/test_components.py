@@ -40,7 +40,7 @@ def test_citation_graph_html_embeds_data_safely() -> None:
     assert json.loads(embedded) == data  # "<\/" is a valid JSON escape for "</"
 
 
-def test_reading_order_html_groups_stages_in_order() -> None:
+def test_reading_step_and_summary_html() -> None:
     items = [
         {"step": 1, "key": "f", "title": "DDPM", "year": 2020, "link": "https://arxiv.org/abs/2006.11239",
          "citation_count": 35007, "stage": "foundations", "reason": "Cited by 10 of your results", "after_steps": []},
@@ -48,12 +48,26 @@ def test_reading_order_html_groups_stages_in_order() -> None:
          "citation_count": None, "stage": "frontier", "reason": "Builds on DDPM", "after_steps": [1]},
     ]
 
-    page = components.reading_order_html(items)
+    assert "2 papers · 1 foundations · 1 frontier" in components.reading_summary_html(items)
+    step = components.reading_step_html(items[1])
+    assert "Audio &lt;LDM&gt;" in step
+    assert "After step 1<" in step
+    assert "pm-step-frontier" in step
+    assert "35,007 citations" in components.reading_step_html(items[0])
 
-    assert "2 papers · 1 foundations · 1 frontier" in page
-    assert page.index("Foundations") < page.index("Frontier")
-    assert "Core" not in page  # empty stages are skipped
-    assert "35,007 citations" in page
-    assert "Audio &lt;LDM&gt;" in page
-    assert "After step 1<" in page
-    assert "\n" not in page
+
+def test_saved_paper_and_topic_html() -> None:
+    paper = {
+        "key": "s2:x", "title": "AudioSet", "link": "https://example.org", "authors": [], "year": None,
+        "citation_count": 4243, "source_query": "audio <gen>", "status": "reading", "note": "Check table 2",
+    }
+    html = components.saved_paper_html(paper)
+    assert "Reading" in html and "Year unknown · 4,243 citations" in html
+    assert "audio &lt;gen&gt;" in html
+    assert "Check table 2" in html
+    assert "pm-authors" not in html  # no empty author line
+
+    topic = {"display": "Diffusion", "summary": "word " * 100, "saved_at": "2026-09-17T10:00:00+00:00", "paper_count": 1}
+    html = components.topic_card_html(topic)
+    assert "Saved Sep 17, 2026 · 1 saved paper<" in html
+    assert "…" in html
