@@ -1,98 +1,113 @@
 # PaperMesh
 
-An AI agent for exploring ML/CS research literature: search a topic, get a synthesized
-summary, ranked and related papers, instead of skimming dozens of PDFs one by one.
+A research-literature explorer for ML/CS papers. Search a topic once and get a synthesized
+overview, a ranked reading list, a reading order, a methods comparison table, and flags where
+papers appear to contradict each other — instead of skimming dozens of PDFs one by one.
 
-## Planned features/done
+Runs locally as a [Streamlit](https://streamlit.io) app. Summaries and extraction run on a local
+model via [Ollama](https://ollama.com) by default, so the whole thing is free to run.
 
-- **Search & summary** — search a topic, get an LLM-synthesized overview of the field
-- **Keyword extraction** — key terms per paper and per topic
-- **Weighted ranking** — combines semantic relevance, citation count, and recency
-- **Paper relations** — citation graph + semantic similarity clustering
-- **Reading order** — foundational → advanced ordering based on the citation graph
-- **Methodology comparison table** — dataset / method / metric / result, extracted per paper
-- **Personal library** — save topics and papers for later
-- **Consensus / disagreement flags** — surfaces where papers actually contradict each other
+## Features
+
+- **Topic overview** — a 150–250 word LLM synthesis of the top 10 results, not per-paper abstracts.
+- **Weighted ranking** — semantic relevance (cosine similarity over `all-MiniLM-L6-v2` embeddings)
+  blended with log-scaled citation counts and recency (3-year half-life). Weights are adjustable
+  in the UI under **Ranking**.
+- **Keywords** — top TF-IDF terms per paper, computed over the current result set.
+- **Citation graph** — interactive graph of the result papers plus any references shared by two or
+  more of them, so the field's foundational work shows up even when it isn't in the results.
+- **Reading order** — foundations → core → frontier, with every paper placed after the papers it
+  cites. Quick / Standard / Deep lengths.
+- **Methods comparison table** — task, method, datasets, metrics and key results extracted per
+  paper, with dataset/metric filters and CSV export.
+- **Possible disagreements** — closely related pairs are checked for conflicting findings and shown
+  as two quotes side by side.
+- **Personal library** — save topics (with their overview) and papers from any card or reading-order
+  step; track reading status and notes. Stored in local SQLite.
+
+Extraction output is checked before it is shown: methodology names must appear in the abstract and
+numbers must match it, and every disagreement is verified word-for-word against both abstracts plus a
+second model pass over just the two quotes. Agreements are deliberately not surfaced — in testing the
+local model labelled almost any related pair as agreeing.
+
+## Quickstart
+
+Requires Python 3.11+ and a running [Ollama](https://ollama.com).
+
+```bash
+git clone <repo-url> && cd PaperMesh
+python -m venv venv
+venv\Scripts\activate          # Windows;  source venv/bin/activate on macOS/Linux
+pip install -r requirements.txt
+
+ollama pull llama3.1:8b
+copy .env.example .env         # cp on macOS/Linux
+
+streamlit run src/papermesh/app.py
+```
+
+The app opens at `http://localhost:8501`. Searches are shareable as links:
+`http://localhost:8501/?q=diffusion+models+for+audio`.
+
+The first run downloads the sentence-transformers model (~90 MB).
+
+## Configuration
+
+All settings live in `.env` (see `.env.example`):
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LLM_BACKEND` | `ollama` | `ollama` (local, free) or `claude` (Anthropic API, paid) |
+| `OLLAMA_MODEL` | `llama3.1:8b` | Model used for summaries and extraction |
+| `OLLAMA_HOST` | `http://localhost:11434` | Where Ollama is listening |
+| `ANTHROPIC_API_KEY` | — | Required only when `LLM_BACKEND=claude` (uses `claude-sonnet-5`) |
+| `SEMANTIC_SCHOLAR_API_KEY` | — | Optional; only needed if you hit rate limits |
+| `PAPERMESH_DB` | `data/papermesh.db` | Point at another file to experiment without touching your library |
 
 ## Data sources
 
-- [arXiv API](https://arxiv.org/help/api) — abstracts, full text links
-- [Semantic Scholar API](https://api.semanticscholar.org/) — citation graph, semantic search
+- [arXiv API](https://arxiv.org/help/api) — paper metadata and abstracts. Responses cached in
+  `data/arxiv_cache/` for 24h.
+- [Semantic Scholar API](https://api.semanticscholar.org/) — citation counts and reference lists.
+  Cached per paper in `data/s2_cache/` for 24h. Works without an API key.
 
-## Build order
+LLM replies are cached too (`data/methodology_cache/`, `data/disagreement_cache/`), keyed by model,
+so re-running a search is fast and doesn't re-spend GPU time. Everything under `data/` is
+regenerable and git-ignored.
 
-1. Search + summary + keywords + relevance-only ranking
-2. Add citation count + recency into a weighted ranking score; build citation graph
-3. Reading order (reuses the citation graph)
-4. Personal library (first real backend/database work)
-5. Methodology comparison table
-6. Consensus/disagreement flags
+## Project layout
 
-## Setup
-
-```bash
-python -m venv venv
-venv\Scripts\activate      # Windows
-pip install -r requirements.txt
+```
+src/papermesh/
+  app.py                 Streamlit entry point + top navigation
+  views/                 Search and Library pages
+  arxiv_client.py        arXiv search (cached)
+  semantic_scholar.py    Citation counts + references (cached)
+  ranking.py             Relevance / citations / recency blend
+  keywords.py            TF-IDF terms per paper
+  citation_graph.py      networkx graph of results + shared references
+  reading_order.py       Stages + citation-depth ordering
+  methodology.py         Per-paper extraction + grounding checks
+  consensus.py           Pair selection, find + verify passes
+  summarizer.py          Topic overview
+  llm.py                 Single entry point for LLM calls (incl. JSON-schema output)
+  library.py             SQLite storage (schema versioned via PRAGMA user_version)
+  components.py          Paper cards + interactive citation graph
+  assets/                app.css, citation_graph.html, force-graph.min.js
+tests/                   pytest suite
+.streamlit/config.toml   Light theme; file watcher disabled
 ```
 
-## Status
-
-✅ **Feature 1** — search + LLM topic summary + per-paper keywords + relevance ranking.
-
-✅ **Feature 2** — weighted ranking (relevance + citations + recency, adjustable under "Ranking") and a citation graph with shared foundational papers.
-
-✅ **Feature 3** — reading order: foundations → core → frontier, with every paper placed after
-the papers it cites (Quick / Standard / Deep lengths).
-
-✅ **Feature 4** — personal library: save topics (with their overview) and papers from any card or
-reading-order step; track reading status and notes on the Library page. Stored locally in SQLite
-(`data/papermesh.db`).
-
-✅ **Feature 5** — methodology comparison table: task, method, datasets, metrics and key results
-extracted from each paper's abstract by the LLM, with dataset/metric filters and CSV export. Replies are
-checked against the abstract (names must appear in it, numbers must match) to filter out invented details.
-
-✅ **Feature 6** — possible disagreements: closely related paper pairs are checked for conflicting
-findings, shown as two quotes side by side. Every flag is double-checked (quotes verified word for word, plus a
-second model pass on just the two quotes). Agreements are deliberately not shown: in testing, the local model
-labelled almost any related pair as agreeing.
-
-Summaries run on a local model via [Ollama](https://ollama.com) by default (free):
+## Development
 
 ```bash
-ollama pull llama3.1:8b
-copy .env.example .env
-streamlit run src/papermesh/app.py
 pytest
 ```
 
-To use Claude instead, set `LLM_BACKEND=claude` and `ANTHROPIC_API_KEY` in `.env`
-(billed separately via platform.claude.com).
+Auto-reload on file save is off — the watcher scans every imported module and `transformers`'
+optional vision modules make it log ~100 tracebacks on startup. Restart the app after changing code.
 
-- `src/papermesh/arxiv_client.py` — arXiv search, responses cached in `data/arxiv_cache/` for 24h
-- `src/papermesh/semantic_scholar.py` — citation counts + reference lists, cached per paper in `data/s2_cache/` for 24h
-- `src/papermesh/ranking.py` — relevance (cosine similarity, `all-MiniLM-L6-v2`) blended with log-scaled citations and recency (3-year half-life)
-- `src/papermesh/citation_graph.py` — `networkx` graph of result papers plus references shared by 2+ results
-- `src/papermesh/reading_order.py` — stages + citation-depth ordering over the citation graph
-- `src/papermesh/library.py` — SQLite storage for saved topics and papers (schema versioned via `PRAGMA user_version`)
-- `src/papermesh/keywords.py` — top TF-IDF terms per paper, computed over the current result set
-- `src/papermesh/llm.py` — single entry point for LLM calls (Ollama or `claude-sonnet-5`), incl. JSON-schema output
-- `src/papermesh/summarizer.py` — 150–250 word overview from the top 10 papers
-- `src/papermesh/methodology.py` — per-paper extraction + grounding checks; raw replies cached in `data/methodology_cache/`
-- `src/papermesh/consensus.py` — pair selection, find + verify passes for disagreements; cached in `data/disagreement_cache/`
-- `src/papermesh/app.py` — Streamlit entry point + top navigation
-- `src/papermesh/views/` — the Search and Library pages
-- `src/papermesh/components.py` + `src/papermesh/assets/` — page styles (`app.css`), paper cards, and the
-  interactive citation graph (`citation_graph.html`, built on the bundled MIT-licensed
-  [force-graph](https://github.com/vasturiano/force-graph))
-- `.streamlit/config.toml` — light theme (Inter font, Apple-style greys and blue)
+## License
 
-Search links are shareable: `http://localhost:8501/?q=diffusion+models+for+audio`.
-
-Auto-reload on file save is off (see `.streamlit/config.toml`); restart the app after changing code.
-Set `PAPERMESH_DB=path/to/other.db` to try things without touching your real library.
-
-The first run downloads the sentence-transformers model (~90 MB). Semantic Scholar works without an API key; set `SEMANTIC_SCHOLAR_API_KEY` in `.env` if you hit rate limits.
-
-
+MIT — see [LICENSE](LICENSE). Bundles [force-graph](https://github.com/vasturiano/force-graph)
+(MIT) in `src/papermesh/assets/`.
