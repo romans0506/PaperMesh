@@ -1,0 +1,59 @@
+import json
+
+from papermesh import components
+
+PAPER = {
+    "title": "Attention <Is> All You Need",
+    "link": "http://arxiv.org/abs/1706.03762v7",
+    "authors": ["A. Vaswani", "N. Shazeer", "N. Parmar", "J. Uszkoreit", "L. Jones"],
+    "published": "2017-06-12T17:57:34Z",
+    "abstract": "The dominant sequence transduction models...",
+    "keywords": ["attention", "transformer"],
+    "citation_count": 1,
+    "score": 0.8,
+    "relevance_score": 0.9,
+    "citation_score": 0.5,
+    "recency_score": 0.25,
+}
+
+
+def test_paper_card_escapes_and_formats() -> None:
+    card = components.paper_card_html(3, PAPER)
+
+    assert "Attention &lt;Is&gt; All You Need" in card
+    assert "<Is>" not in card
+    assert "A. Vaswani, N. Shazeer, N. Parmar +2 more" in card
+    assert "2017 · 1 citation<" in card
+    assert 'target="_blank"' in card
+    assert '<span class="pm-rank">03</span>' in card
+    assert "\n" not in card  # blank lines would break the markdown HTML block
+
+
+def test_citation_graph_html_embeds_data_safely() -> None:
+    data = {"nodes": [{"id": "x", "title": "</script><b>evil</b>"}], "links": []}
+
+    page = components.citation_graph_html(data)
+
+    assert "/*__GRAPH_DATA__*/" not in page and "/*__FORCE_GRAPH_JS__*/" not in page
+    assert "</script><b>evil" not in page
+    embedded = page.split("const data = ", 1)[1].split(";\n", 1)[0]
+    assert json.loads(embedded) == data  # "<\/" is a valid JSON escape for "</"
+
+
+def test_reading_order_html_groups_stages_in_order() -> None:
+    items = [
+        {"step": 1, "key": "f", "title": "DDPM", "year": 2020, "link": "https://arxiv.org/abs/2006.11239",
+         "citation_count": 35007, "stage": "foundations", "reason": "Cited by 10 of your results", "after_steps": []},
+        {"step": 2, "key": "r", "title": "Audio <LDM>", "year": 2023, "link": "https://arxiv.org/abs/2301.12503",
+         "citation_count": None, "stage": "frontier", "reason": "Builds on DDPM", "after_steps": [1]},
+    ]
+
+    page = components.reading_order_html(items)
+
+    assert "2 papers · 1 foundations · 1 frontier" in page
+    assert page.index("Foundations") < page.index("Frontier")
+    assert "Core" not in page  # empty stages are skipped
+    assert "35,007 citations" in page
+    assert "Audio &lt;LDM&gt;" in page
+    assert "After step 1<" in page
+    assert "\n" not in page

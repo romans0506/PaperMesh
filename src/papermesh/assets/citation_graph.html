@@ -1,0 +1,258 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --text: #1d1d1f; --text-2: #6e6e73; --text-3: #86868b;
+    --bg-alt: #f5f5f7; --line: #e8e8ed; --blue: #0071e3; --link: #0066cc;
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: transparent; font-family: var(--font); -webkit-font-smoothing: antialiased; }
+  #stage {
+    position: relative; height: 100%; overflow: hidden; border-radius: 26px;
+    background: radial-gradient(1200px 600px at 20% 0%, #ffffff 0%, #f5f5f7 70%);
+    border: 1px solid var(--line);
+  }
+  #graph { position: absolute; inset: 0; }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+  }
+
+  #legend {
+    position: absolute; top: 16px; left: 16px; display: flex; gap: 14px; align-items: center;
+    padding: 8px 14px; border-radius: 980px; font-size: 12px; color: var(--text-2);
+  }
+  #legend span { display: inline-flex; align-items: center; gap: 6px; }
+  #legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  #controls { position: absolute; top: 16px; right: 16px; display: flex; gap: 8px; }
+  #controls button {
+    font: 500 12px var(--font); color: var(--text); cursor: pointer;
+    padding: 8px 14px; border-radius: 980px; transition: background 0.2s ease;
+  }
+  #controls button:hover { background: rgba(255, 255, 255, 0.95); }
+  #controls button.on { color: #fff; background: var(--text); border-color: var(--text); }
+
+  #hint {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    padding: 7px 14px; border-radius: 980px; font-size: 12px; color: var(--text-3); white-space: nowrap;
+    transition: opacity 0.6s ease;
+  }
+
+  #panel {
+    position: absolute; top: 64px; right: 16px; bottom: 16px; width: min(340px, calc(100% - 32px));
+    border-radius: 22px; padding: 22px 22px 18px; overflow-y: auto;
+    opacity: 0; transform: translateX(12px); pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  #panel.open { opacity: 1; transform: none; pointer-events: auto; }
+  #panel .close {
+    position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 50%;
+    border: none; background: rgba(0, 0, 0, 0.05); color: var(--text-2); font-size: 16px; cursor: pointer;
+  }
+  #panel .eyebrow { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+  #panel h3 { font-size: 19px; line-height: 1.28; font-weight: 600; letter-spacing: -0.018em; color: var(--text); margin: 8px 28px 8px 0; }
+  #panel .meta { font-size: 13px; color: var(--text-2); }
+  #panel .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0; }
+  #panel .stat { background: rgba(0, 0, 0, 0.035); border-radius: 14px; padding: 10px 12px; }
+  #panel .stat b { display: block; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); font-variant-numeric: tabular-nums; }
+  #panel .stat small { font-size: 11px; color: var(--text-3); }
+  #panel .open-link {
+    display: block; text-align: center; text-decoration: none; font-size: 14px; font-weight: 500;
+    color: #fff; background: var(--blue); border-radius: 980px; padding: 10px 0;
+  }
+  #panel .open-link:hover { background: #0077ed; }
+  #panel h4 { font-size: 12px; font-weight: 600; color: var(--text-3); margin: 18px 0 6px; }
+  #panel ul { list-style: none; padding: 0; margin: 0; }
+  #panel li {
+    font-size: 13px; line-height: 1.35; color: var(--text); padding: 8px 10px; margin: 0 -10px;
+    border-radius: 10px; cursor: pointer; display: flex; gap: 8px; align-items: baseline;
+  }
+  #panel li:hover { background: rgba(0, 0, 0, 0.04); }
+  #panel li i { flex: none; width: 7px; height: 7px; border-radius: 50%; transform: translateY(-1px); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="graph"></div>
+  <div id="legend" class="glass">
+    <span><i style="background:#0071e3"></i>Search result</span>
+    <span><i style="background:#1d1d1f"></i>Shared foundation</span>
+  </div>
+  <div id="controls">
+    <button id="labels" class="glass">Labels</button>
+    <button id="fit" class="glass">Fit</button>
+  </div>
+  <div id="hint" class="glass">Hover to trace citations · click for details · scroll to zoom</div>
+  <aside id="panel" class="glass"></aside>
+</div>
+
+<script>/*__FORCE_GRAPH_JS__*/</script>
+<script>
+(function () {
+  const data = /*__GRAPH_DATA__*/;
+  const BLUE = "#0071e3", INK = "#1d1d1f";
+  const stage = document.getElementById("stage");
+  const panel = document.getElementById("panel");
+
+  const byId = new Map(data.nodes.map(n => [n.id, n]));
+  const neighbors = new Map(data.nodes.map(n => [n.id, new Set()]));
+  data.links.forEach(l => {
+    neighbors.get(l.source).add(l.target);
+    neighbors.get(l.target).add(l.source);
+  });
+
+  const maxLog = Math.max(1, ...data.nodes.map(n => Math.log1p(n.citations || 0)));
+  data.nodes.forEach(n => {
+    n.r = 3.5 + 9 * Math.sqrt(Math.log1p(n.citations || 0) / maxLog);
+    n.color = n.inResults ? BLUE : INK;
+    n.degree = neighbors.get(n.id).size;
+  });
+  // The best-connected papers keep their label at every zoom level.
+  const ALWAYS_LABELLED = new Set(
+    [...data.nodes].sort((a, b) => b.degree - a.degree).slice(0, 3).map(n => n.id)
+  );
+
+  let hovered = null, selected = null, showLabels = false;
+  const focus = () => hovered || selected;
+  const isLit = id => { const f = focus(); return !f || f.id === id || neighbors.get(f.id).has(id); };
+  const linkLit = l => { const f = focus(); return f && (l.source.id === f.id || l.target.id === f.id); };
+
+  const particleCount = l => (linkLit(l) ? 3 : 0);
+  // force-graph only rebuilds particles (and wakes its paused render loop) when a prop is set,
+  // so re-apply one whenever the hovered/selected paper changes.
+  const refresh = () => graph.linkDirectionalParticles(particleCount);
+
+  const shortTitle = t => (t.length > 42 ? t.slice(0, 40).trimEnd() + "…" : t);
+
+  const graph = ForceGraph()(document.getElementById("graph"))
+    .width(stage.clientWidth).height(stage.clientHeight)
+    .backgroundColor("rgba(0,0,0,0)")
+    .graphData(data)
+    .nodeId("id")
+    .nodeRelSize(1)
+    .nodeVal(n => n.r * n.r)
+    .nodeLabel(() => "")
+    .nodeCanvasObject((n, ctx, scale) => {
+      const lit = isLit(n.id);
+      const f = focus();
+      ctx.globalAlpha = lit ? 1 : 0.12;
+
+      if (f && f.id === n.id) {  // halo on the focused paper
+        ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 5, 0, 2 * Math.PI);
+        ctx.fillStyle = n.inResults ? "rgba(0,113,227,0.14)" : "rgba(29,29,31,0.10)"; ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, 2 * Math.PI);
+      ctx.fillStyle = n.color; ctx.fill();
+      ctx.lineWidth = 1.5 / scale; ctx.strokeStyle = "#ffffff"; ctx.stroke();
+
+      const labelled = f ? lit : showLabels || scale > 2.6 || ALWAYS_LABELLED.has(n.id);
+      if (labelled) {
+        const size = Math.max(11 / scale, 2.2);
+        ctx.font = `${f && f.id === n.id ? 600 : 500} ${size}px Inter, -apple-system, sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        const text = shortTitle(n.title);
+        const w = ctx.measureText(text).width, pad = size * 0.35, y = n.y + n.r + 3 / scale;
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fillRect(n.x - w / 2 - pad, y - pad * 0.5, w + pad * 2, size + pad);
+        ctx.fillStyle = INK; ctx.fillText(text, n.x, y);
+      }
+      ctx.globalAlpha = 1;
+    })
+    .nodePointerAreaPaint((n, color, ctx) => {
+      ctx.beginPath(); ctx.arc(n.x, n.y, n.r + 3, 0, 2 * Math.PI); ctx.fillStyle = color; ctx.fill();
+    })
+    .linkColor(l => (linkLit(l) ? "rgba(0,113,227,0.55)" : focus() ? "rgba(0,0,0,0.03)" : "rgba(0,0,0,0.13)"))
+    .linkWidth(l => (linkLit(l) ? 1.6 : 0.7))
+    .linkDirectionalArrowLength(l => (linkLit(l) ? 5 : 2.5))
+    .linkDirectionalArrowRelPos(1)
+    .linkDirectionalArrowColor(l => (linkLit(l) ? BLUE : focus() ? "rgba(0,0,0,0.03)" : "rgba(0,0,0,0.18)"))
+    .linkDirectionalParticles(particleCount)
+    .linkDirectionalParticleWidth(3)
+    .linkDirectionalParticleSpeed(0.007)
+    .linkDirectionalParticleColor(() => BLUE)
+    .d3VelocityDecay(0.35)
+    .cooldownTicks(160)
+    .onNodeHover(n => {
+      if ((n || null) === hovered) return;
+      hovered = n || null;
+      stage.style.cursor = n ? "pointer" : "default";
+      refresh();
+    })
+    .onNodeClick(n => select(n))
+    .onBackgroundClick(() => select(null))
+    .onNodeDragEnd(n => { n.fx = n.x; n.fy = n.y; });
+
+  graph.d3Force("charge").strength(n => -40 - n.r * 12);
+  graph.d3Force("link").distance(l => 36 + l.source.r + l.target.r);
+
+  let fitted = false;
+  graph.onEngineStop(() => { if (!fitted) { graph.zoomToFit(700, 70); fitted = true; } });
+
+  function el(tag, props = {}, children = []) {
+    const e = document.createElement(tag);
+    Object.entries(props).forEach(([k, v]) => (k === "style" ? e.setAttribute("style", v) : (e[k] = v)));
+    children.forEach(c => e.append(c));
+    return e;
+  }
+
+  function stat(value, label) {
+    return el("div", { className: "stat" }, [el("b", { textContent: value }), el("small", { textContent: label })]);
+  }
+
+  function connectionList(title, ids) {
+    if (!ids.length) return [];
+    const items = ids
+      .map(id => byId.get(id))
+      .sort((a, b) => (b.citations || 0) - (a.citations || 0))
+      .map(n => {
+        const li = el("li", {}, [el("i", { style: `background:${n.color}` }), document.createTextNode(n.title)]);
+        li.onclick = () => select(n);
+        return li;
+      });
+    return [el("h4", { textContent: title }), el("ul", {}, items)];
+  }
+
+  function select(n) {
+    selected = n;
+    refresh();
+    if (!n) { panel.classList.remove("open"); return; }
+
+    const cites = data.links.filter(l => l.source.id === n.id).map(l => l.target.id);
+    const citedBy = data.links.filter(l => l.target.id === n.id).map(l => l.source.id);
+    const citations = n.citations == null ? "—" : n.citations.toLocaleString();
+
+    panel.replaceChildren(
+      el("button", { className: "close", textContent: "×", onclick: () => select(null) }),
+      el("div", { className: "eyebrow", textContent: n.inResults ? "Search result" : "Shared foundation",
+                  style: `color:${n.inResults ? BLUE : "#6e6e73"}` }),
+      el("h3", { textContent: n.title }),
+      el("div", { className: "meta", textContent: n.year ? String(n.year) : "Year unknown" }),
+      el("div", { className: "stats" }, [stat(citations, "total citations"), stat(String(citedBy.length), "cited by results")]),
+      el("a", { className: "open-link", href: n.link, target: "_blank", rel: "noopener", textContent: "Open paper ↗" }),
+      ...connectionList("Cited by", citedBy),
+      ...connectionList("Cites", cites),
+    );
+    panel.classList.add("open");
+    graph.centerAt(n.x, n.y, 600);
+    if (graph.zoom() < 2) graph.zoom(2.2, 600);
+  }
+
+  const labelsBtn = document.getElementById("labels");
+  labelsBtn.onclick = () => { showLabels = !showLabels; labelsBtn.classList.toggle("on", showLabels); };
+  document.getElementById("fit").onclick = () => { select(null); graph.zoomToFit(600, 70); };
+
+  setTimeout(() => (document.getElementById("hint").style.opacity = "0"), 6000);
+  new ResizeObserver(() => graph.width(stage.clientWidth).height(stage.clientHeight)).observe(stage);
+})();
+</script>
+</body>
+</html>

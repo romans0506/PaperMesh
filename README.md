@@ -38,7 +38,12 @@ pip install -r requirements.txt
 
 ## Status
 
-✅ **Step 1 implemented** — search + LLM topic summary + per-paper keywords + relevance-only ranking.
+✅ **Step 1 implemented** — search + LLM topic summary + per-paper keywords + relevance ranking.
+
+✅ **Step 2 implemented** — weighted ranking (relevance + citations + recency, adjustable under "Ranking") and a citation graph with shared foundational papers.
+
+✅ **Step 3 implemented** — reading order: foundations → core → frontier, with every paper placed after
+the papers it cites (Quick / Standard / Deep lengths).
 
 Summaries run on a local model via [Ollama](https://ollama.com) by default (free):
 
@@ -53,11 +58,20 @@ To use Claude instead, set `SUMMARY_BACKEND=claude` and `ANTHROPIC_API_KEY` in `
 (billed separately via platform.claude.com).
 
 - `src/papermesh/arxiv_client.py` — arXiv search, responses cached in `data/arxiv_cache/` for 24h
-- `src/papermesh/ranking.py` — cosine similarity of query vs. abstract (`all-MiniLM-L6-v2`)
+- `src/papermesh/semantic_scholar.py` — citation counts + reference lists, cached per paper in `data/s2_cache/` for 24h
+- `src/papermesh/ranking.py` — relevance (cosine similarity, `all-MiniLM-L6-v2`) blended with log-scaled citations and recency (3-year half-life)
+- `src/papermesh/citation_graph.py` — `networkx` graph of result papers plus references shared by 2+ results
+- `src/papermesh/reading_order.py` — stages + citation-depth ordering over the citation graph
 - `src/papermesh/keywords.py` — top TF-IDF terms per paper, computed over the current result set
 - `src/papermesh/summarizer.py` — 150–250 word overview from the top 10 papers (Ollama, or `claude-sonnet-5`)
-- `src/papermesh/app.py` — Streamlit UI
+- `src/papermesh/app.py` — Streamlit UI wiring
+- `src/papermesh/components.py` + `src/papermesh/assets/` — page styles (`app.css`), paper cards, and the
+  interactive citation graph (`citation_graph.html`, built on the bundled MIT-licensed
+  [force-graph](https://github.com/vasturiano/force-graph))
+- `.streamlit/config.toml` — light theme (Inter font, Apple-style greys and blue)
 
-The first run downloads the sentence-transformers model (~90 MB).
+Search links are shareable: `http://localhost:8501/?q=diffusion+models+for+audio`.
 
-Next: step 2 (citation count + recency weighting, citation graph).
+The first run downloads the sentence-transformers model (~90 MB). Semantic Scholar works without an API key; set `SEMANTIC_SCHOLAR_API_KEY` in `.env` if you hit rate limits.
+
+Next: step 4 (personal library — save topics and papers).
