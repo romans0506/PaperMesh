@@ -2,27 +2,27 @@
 
 A research-literature explorer for ML/CS papers. Search a topic once and get a synthesized
 overview, a ranked reading list, a reading order, a methods comparison table, and flags where
-papers appear to contradict each other — instead of skimming dozens of PDFs one by one.
+papers appear to contradict each other - instead of skimming dozens of PDFs one by one.
 
 Runs locally as a [Streamlit](https://streamlit.io) app. Summaries and extraction run on a local
 model via [Ollama](https://ollama.com) by default, so the whole thing is free to run.
 
 ## Features
 
-- **Topic overview** — a 150–250 word LLM synthesis of the top 10 results, not per-paper abstracts.
-- **Weighted ranking** — semantic relevance (cosine similarity over `all-MiniLM-L6-v2` embeddings)
+- **Topic overview** - a 150–250 word LLM synthesis of the top 10 results, not per-paper abstracts.
+- **Weighted ranking** - semantic relevance (cosine similarity over `all-MiniLM-L6-v2` embeddings)
   blended with log-scaled citation counts and recency (3-year half-life). Weights are adjustable
   in the UI under **Ranking**.
-- **Keywords** — top TF-IDF terms per paper, computed over the current result set.
-- **Citation graph** — interactive graph of the result papers plus any references shared by two or
+- **Keywords** - top TF-IDF terms per paper, computed over the current result set.
+- **Citation graph** - interactive graph of the result papers plus any references shared by two or
   more of them, so the field's foundational work shows up even when it isn't in the results.
-- **Reading order** — foundations → core → frontier, with every paper placed after the papers it
+- **Reading order** - foundations → core → frontier, with every paper placed after the papers it
   cites. Quick / Standard / Deep lengths.
-- **Methods comparison table** — task, method, datasets, metrics and key results extracted per
+- **Methods comparison table** - task, method, datasets, metrics and key results extracted per
   paper, with dataset/metric filters and CSV export.
-- **Possible disagreements** — closely related pairs are checked for conflicting findings and shown
+- **Possible disagreements** - closely related pairs are checked for conflicting findings and shown
   as two quotes side by side.
-- **Personal library** — save topics (with their overview) and papers from any card or reading-order
+- **Personal library** - save topics (with their overview) and papers from any card or reading-order
   step; track reading status and notes. Stored in local SQLite.
 
 Extraction output is checked before it is shown: methodology names must appear in the abstract and
@@ -104,7 +104,7 @@ tests/                   pytest suite
 pytest
 ```
 
-Auto-reload on file save is off — the watcher scans every imported module and `transformers`'
+Auto-reload on file save is off - the watcher scans every imported module and `transformers`'
 optional vision modules make it log ~100 tracebacks on startup. Restart the app after changing code.
 
 ## License
